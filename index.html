@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kalkulator czasów skrzyżowania 3-wlotowego</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#fff; --text:#1f2937; --muted:#6b7280; --line:#d1d5db;
+    --red:#e53935; --yellow:#fbc02d; --green:#43a047; --blue:#2563eb;
+  }
+  *{box-sizing:border-box}
+  body{font-family:Arial,Helvetica,sans-serif;margin:0;background:var(--bg);color:var(--text)}
+  .wrap{max-width:1050px;margin:24px auto;padding:0 14px 40px}
+  h1{font-size:26px;margin:0 0 8px}
+  h2{font-size:20px;margin:24px 0 10px}
+  .sub{color:var(--muted);margin-bottom:18px}
+  .card{background:var(--card);border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:5px}
+  input{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;font-size:16px}
+  input.green-in{background:#e8f5e9;border-color:#81c784}
+  input.red-in{background:#ffebee;border-color:#e57373}
+  input.yellow-in{background:#fff8e1;border-color:#ffd54f}
+  button{border:0;border-radius:10px;padding:11px 16px;font-size:15px;cursor:pointer}
+  .primary{background:var(--blue);color:#fff}
+  .secondary{background:#e5e7eb;color:#111827}
+  .actions{display:flex;gap:10px;flex-wrap:wrap}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{border-bottom:1px solid #e5e7eb;padding:9px 8px;text-align:center}
+  th{background:#f9fafb}
+  .big{font-size:28px;font-weight:700}
+  .ok{color:var(--green);font-weight:700}
+  .warn{color:#b45309;font-weight:700}
+  .timeline{overflow-x:auto}
+  .row{display:grid;grid-template-columns:70px 1fr;align-items:center;margin:9px 0;min-width:820px}
+  .name{font-weight:700}
+  .bar{display:flex;height:34px;border-radius:7px;overflow:hidden;border:1px solid #d1d5db;background:#eee}
+  .seg{display:flex;align-items:center;justify-content:center;font-size:11px;white-space:nowrap;overflow:hidden}
+  .r{background:var(--red);color:white}
+  .y{background:var(--yellow);color:#111}
+  .g{background:var(--green);color:white}
+  .note{font-size:13px;color:var(--muted);line-height:1.45}
+  .formula{font-family:Consolas,monospace;background:#f3f4f6;border-radius:8px;padding:10px;overflow:auto}
+  @media(max-width:760px){.grid,.grid4{grid-template-columns:1fr 1fr} h1{font-size:22px}}
+  @media(max-width:480px){.grid,.grid4{grid-template-columns:1fr}}
+  @media print{body{background:white}.actions{display:none}.card{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Kalkulator skrzyżowania 3‑wlotowego</h1>
+  <div class="sub">K1 → K2 → K3. Automatycznie wylicza okres T, punkty czasowe, opóźnienie startu K2 (Top) i tabelę nastaw.</div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Dane wejściowe</h2>
+    <div class="grid">
+      <div><label>Zielone K1 [s]</label><input id="g1" class="green-in" type="number" min="1" value="90"></div>
+      <div><label>Zielone K2 [s]</label><input id="g2" class="green-in" type="number" min="1" value="90"></div>
+      <div><label>Zielone K3 [s]</label><input id="g3" class="green-in" type="number" min="1" value="90"></div>
+    </div>
+    <div class="grid" style="margin-top:12px">
+      <div><label>Ewakuacja po K1 [s]</label><input id="e1" class="red-in" type="number" min="0" value="150"></div>
+      <div><label>Czerw K2 [s]</label><input id="e2" class="red-in" type="number" min="0" value="150"></div>
+      <div><label>Ewakuacja po K3 [s]</label><input id="e3" class="red-in" type="number" min="0" value="150"></div>
+    </div>
+    <div class="grid" style="margin-top:12px">
+      <div><label>Żółte po zielonym [s]</label><input id="y" type="number" min="0" value="3"></div>
+      <div><label>Czerwone + żółte przed zielonym [s]</label><input id="ry" type="number" min="0" value="1"></div>
+      <div><label>Top K2</label><input class="yellow-in" value="maks. 120 s" disabled></div>
+    </div>
+    <div class="actions" style="margin-top:14px">
+      <button class="primary" onclick="calc()">Przelicz</button>
+      <button class="secondary" onclick="window.print()">Drukuj / PDF</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="grid">
+      <div><label>Pełny okres T</label><div id="T" class="big">—</div></div>
+      <div><label>Opóźnienie startu K2 – Top</label><div id="top" class="big">—</div></div>
+      <div><label>Stan obliczeń</label><div id="status" class="big" style="font-size:18px">—</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Tabela nastaw</h2>
+    <table>
+      <thead>
+        <tr><th>Sygnalizator</th><th>Konfiguracja</th><th>Top</th><th>Czerw</th><th>Ziel 1</th><th>Ziel 2</th></tr>
+      </thead>
+      <tbody id="settings"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Diagram czasowy</h2>
+    <div class="timeline" id="timeline"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Obliczenia</h2>
+    <div id="formula" class="formula"></div>
+  </div>
+</div>
+
+<script>
+function n(id){ return Number(document.getElementById(id).value)||0; }
+function fmt(s){
+  const m=Math.floor(s/60), r=s%60;
+  return s+" s"+(m?(" ("+m+" min "+r+" s)"):"");
+}
+function seg(cls, seconds, T, text){
+  const w = Math.max(0, seconds/T*100);
+  return `<div class="seg ${cls}" style="width:${w}%">${w>4?text:""}</div>`;
+}
+function calc(){
+  const g1=n('g1'), g2=n('g2'), g3=n('g3');
+  const e1=n('e1'), e2=n('e2'), e3=n('e3');
+  const y=n('y'), ry=n('ry'); const step=30;
+
+  // Sekwencja: K1 ziel, żółte, ewakuacja, R+Ż K2, K2 ziel, ...
+  const k1g0=0, k1g1=g1, k1y1=k1g1+y;
+  const k2ry0=k1y1+e1, k2g0=k2ry0+ry, k2g1=k2g0+g2, k2y1=k2g1+y;
+  const k3ry0=k2y1+e2, k3g0=k3ry0+ry, k3g1=k3g0+g3, k3y1=k3g1+y;
+  const k1ry0=k3y1+e3, T=k1ry0+ry;
+
+  // Dla zgodności z instrukcją 8 s = 2*(3+1), ale pozwalamy zmieniać y/ry.
+  const fixed = 2*(y+ry);
+
+  // Przyjmujemy Czerw jako czas ewakuacji danego sterownika.
+  // Parametry Ziel2 z równania okresu.
+  const k1z2 = T - 2*e1 - g1 - fixed;
+  let k2z2 = T - 2*e2 - g2 - fixed;
+  const k3z1 = T - 2*e3 - g3 - fixed;
+
+  // Ton K2 analogicznie do instrukcji:
+  // T - koniec żółtego K3 + początek R+Ż K2
+  const Ton = T - k3y1 + k2ry0;
+  const limit = (T - g2 - fixed)/2;
+  let topRounded = Ton - e2;
+  if (topRounded > 120) topRounded = 120;
+  if (topRounded < 0) topRounded = 0;
+  const czerwK2 = Ton - topRounded;
+  k2z2 = T - 2*czerwK2 - g2 - fixed;
+
+  document.getElementById('T').textContent=fmt(T);
+  document.getElementById('top').textContent=topRounded+" s";
+  const sumaK2ok = (topRounded + czerwK2 === Ton);
+  const ok = [k1z2,k2z2,k3z1].every(v=>v>=0) && sumaK2ok;
+  document.getElementById('status').innerHTML = ok ? '<span class="ok">OK</span>' : '<span class="warn">Sprawdź czasy</span>';
+
+  document.getElementById('settings').innerHTML = `
+    <tr><td><b>K1</b></td><td>S1</td><td>0 s</td><td>${e1} s</td><td>${g1} s</td><td>${k1z2} s</td></tr>
+    <tr><td><b>K2</b></td><td>S1</td><td>${topRounded} s</td><td>${czerwK2} s</td><td>${g2} s</td><td>${k2z2} s</td></tr>
+    <tr><td><b>K3</b></td><td>S2</td><td>0 s</td><td>${e3} s</td><td>${k3z1} s</td><td>${g3} s</td></tr>`;
+
+  // Wizualne paski faz.
+  const k1 = seg('g',g1,T,'ZIEL '+g1) + seg('y',y,T,'Ż') + seg('r',T-g1-y-ry,T,'CZERW') + seg('y',ry,T,'R+Ż');
+  const k2 = seg('r',k2ry0,T,'CZERW') + seg('y',ry,T,'R+Ż') + seg('g',g2,T,'ZIEL '+g2) + seg('y',y,T,'Ż') + seg('r',T-k2g1-y,T,'CZERW');
+  const k3 = seg('r',k3ry0,T,'CZERW') + seg('y',ry,T,'R+Ż') + seg('g',g3,T,'ZIEL '+g3) + seg('y',y,T,'Ż') + seg('r',T-k3g1-y,T,'CZERW');
+  const ticks = [
+    0,k1g1,k1y1,k2ry0,k2g0,k2g1,k2y1,k3ry0,k3g0,k3g1,k3y1,k1ry0,T
+  ];
+  const axis = `<div style="position:relative;height:48px;margin-left:70px;min-width:820px;border-top:1px solid #9ca3af">
+    ${ticks.map(v=>`<div style="position:absolute;left:${(v/T*100)}%;top:-6px;transform:translateX(-50%);text-align:center">
+      <div style="width:1px;height:12px;background:#374151;margin:auto"></div>
+      <div style="font-size:11px;font-weight:700;white-space:nowrap;background:#fff;padding:1px 3px;border-radius:3px">${v}s</div>
+    </div>`).join('')}
+  </div>`;
+
+  const markers = ticks.map(v=>`
+    <div style="position:absolute;left:${(v/T*100)}%;top:0;bottom:0;border-left:1px dashed rgba(31,41,55,.38);pointer-events:none"></div>
+  `).join('');
+
+  document.getElementById('timeline').innerHTML = `
+    ${axis}
+    <div style="position:relative;min-width:820px">
+      ${markers}
+      <div class="row"><div class="name">K1</div><div class="bar">${k1}</div></div>
+      <div class="row"><div class="name">K2</div><div class="bar">${k2}</div></div>
+      <div class="row"><div class="name">K3</div><div class="bar">${k3}</div></div>
+    </div>`;
+
+  document.getElementById('formula').innerHTML =
+`Ton K2 = ${Ton} s
+Top K2 = ${topRounded} s
+Czerw K2 = ${czerwK2} s`;
+}
+calc();
+</script>
+</body>
+</html>
