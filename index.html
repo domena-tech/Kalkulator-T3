@@ -68,7 +68,7 @@
     <div class="grid" style="margin-top:12px">
       <div><label>Żółte po zielonym [s]</label><input id="y" type="number" min="0" value="3"></div>
       <div><label>Czerwone + żółte przed zielonym [s]</label><input id="ry" type="number" min="0" value="1"></div>
-      <div><label>Top K2</label><input class="yellow-in" value="maks. 120 s" disabled></div>
+      <div><label>Top K2</label><input class="yellow-in" value="30 / 60 / 90 / 120 s" disabled></div>
     </div>
     <div class="actions" style="margin-top:14px">
       <button class="primary" onclick="calc()">Przelicz</button>
@@ -139,7 +139,7 @@ function calc(){
   // T - koniec żółtego K3 + początek R+Ż K2
   const Ton = T - k3y1 + k2ry0;
   const limit = (T - g2 - fixed)/2;
-  let topRounded = Ton - e2;
+  let topRounded = Math.floor(Ton / 30) * 30;
   if (topRounded > 120) topRounded = 120;
   if (topRounded < 0) topRounded = 0;
   const czerwK2 = Ton - topRounded;
